@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.healthconnect"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.healthconnect"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 33
         versionCode = 1
         versionName = "1.0"
 
@@ -58,4 +58,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation(libs.androidx.connect.client)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.material)
+    implementation(libs.androidx.navigation.compose)
+
 }
