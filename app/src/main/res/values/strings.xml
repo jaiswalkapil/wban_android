@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">Health Connect</string>
+    <string name="app_name">Project Health Connect App</string>
+    <string name="home_screen">Home</string>
 </resources>
