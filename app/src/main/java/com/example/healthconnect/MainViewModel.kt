@@ -17,6 +17,8 @@ import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.healthconnect.data.model.StepData
+import com.example.healthconnect.data.repository.StepRepository
 import com.example.healthconnect.helper.HealthConnectManager
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -64,6 +66,8 @@ class MainViewModel(private val healthConnectManager: HealthConnectManager): Vie
 
     val permissionsLauncher = healthConnectManager.requestPermissionsActivityContract()
 
+    private val stepRepository = StepRepository()
+
     fun initialLoad() {
         viewModelScope.launch {
             tryWithPermissionsCheck {
@@ -87,6 +91,37 @@ class MainViewModel(private val healthConnectManager: HealthConnectManager): Vie
 
                 healthConnectManager.writeExerciseSession(startOfSession, endOfSession)
                 readExerciseSessions()
+            }
+        }
+    }
+
+    fun insertDummyExerciseSession() {
+        viewModelScope.launch {
+            tryWithPermissionsCheck {
+                val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS)
+                val latestStart = ZonedDateTime.now().minusMinutes(30)
+                val offset = Random.nextDouble()
+
+                val startTime = startOfDay.plusSeconds(
+                    (Duration.between(startOfDay, latestStart).seconds * offset).toLong()
+                )
+                val endTime = startTime.plusMinutes(30)
+
+                val count = (50..150).random()
+
+                val stepData = StepData(
+                    count = count,
+                    startTime = startTime.toInstant().toString(),
+                    endTime = endTime.toInstant().toString()
+                )
+
+                stepRepository.saveStep(stepData)
+                    .addOnSuccessListener {
+                        Log.d("MainViewModel", "Dummy step inserted: $count steps")
+                    }
+                    .addOnFailureListener {
+                        Log.e("MainViewModel", "Failed to insert step", it)
+                    }
             }
         }
     }

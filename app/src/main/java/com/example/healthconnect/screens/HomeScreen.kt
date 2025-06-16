@@ -35,6 +35,7 @@ fun HomeScreen(
     sessionsList: List<ExerciseSessionRecord>,
     uiState: MainViewModel.UiState,
     onInsertClick: () -> Unit = {},
+    onInsertDummyClick: () -> Unit = {},
     onDetailsClick: (String) -> Unit = {},
     onError: (Throwable?) -> Unit = {},
     onPermissionsResult: () -> Unit = {},
@@ -89,6 +90,13 @@ fun HomeScreen(
                     ) {
                         Text(text = "Insert Data")
                     }
+                    Button(modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(4.dp),
+                        onClick = {
+                            onInsertDummyClick()
+                        }) { Text(text = "Insert Dummy Step") }
                 }
                 if (!backgroundReadGranted) {
                     item {
