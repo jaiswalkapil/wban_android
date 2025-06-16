@@ -60,6 +60,7 @@ fun MainNavigation(navController: NavHostController,
                 onInsertClick = {
                     viewModel.insertExerciseSession()
                 },
+                onInsertDummyClick = { viewModel.insertDummyExerciseSession() },
                 onDetailsClick = { },
                 onError = { Log.d("MainNavigation", "Error: ${it?.message}") },
                 onPermissionsResult = {
