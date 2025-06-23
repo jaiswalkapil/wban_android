@@ -36,6 +36,7 @@ fun HomeScreen(
     uiState: MainViewModel.UiState,
     onInsertClick: () -> Unit = {},
     onInsertDummyClick: () -> Unit = {},
+    onSendLocalDataToFirebase: () -> Unit = {},
     onDetailsClick: (String) -> Unit = {},
     onError: (Throwable?) -> Unit = {},
     onPermissionsResult: () -> Unit = {},
@@ -97,65 +98,13 @@ fun HomeScreen(
                         onClick = {
                             onInsertDummyClick()
                         }) { Text(text = "Insert Dummy Step") }
-                }
-                if (!backgroundReadGranted) {
-                    item {
-                        Button(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .padding(4.dp),
-                            onClick = {
-                                onPermissionsLaunch(backgroundReadPermissions)
-                            },
-                            enabled = backgroundReadAvailable,
-                        ) {
-                            if (backgroundReadAvailable){
-                                Text(text = "Request Background Read")
-                            } else {
-                                Text(text = "Background Read is not available")
-                            }
-                        }
-                    }
-                } else {
-                    item {
-                        Button(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .padding(4.dp),
-                            onClick = {
-                                onBackgroundReadClick()
-                            },
-                        ) {
-                            Text(text = "Read Steps in Background")
-                        }
-                    }
-                }
-
-                if (!historyReadGranted) {
-                    item {
-                        Button(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .padding(4.dp),
-                            onClick = {
-                                onPermissionsLaunch(historyReadPermissions)
-                            },
-                            enabled = historyReadAvailable,
-                        ) {
-                            if (historyReadAvailable){
-                                Text(text = "Request History Read")
-                            } else {
-                                Text(text = "History Read is not available")
-                            }
-                        }
-                    }
-                }
-
-                items(sessionsList) { session ->
-                    Log.d("HomeScreen", "Session: ${session.metadata.id}, Title: ${session.title}")
+                    Button(modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(4.dp),
+                        onClick = {
+                            onSendLocalDataToFirebase()
+                        }) { Text(text = "Send Local to Firebase") }
                 }
             }
         }
