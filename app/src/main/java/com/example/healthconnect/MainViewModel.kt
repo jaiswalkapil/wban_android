@@ -17,7 +17,10 @@ import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.room.Room
+import com.example.healthconnect.data.local.dao.AppDatabase
 import com.example.healthconnect.data.model.StepData
+import com.example.healthconnect.data.repository.LocalRepository
 import com.example.healthconnect.data.repository.StepRepository
 import com.example.healthconnect.helper.HealthConnectManager
 import kotlinx.coroutines.launch
@@ -25,11 +28,16 @@ import java.io.IOException
 import java.time.Duration
 import java.time.Instant
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlin.random.Random
 
-class MainViewModel(private val healthConnectManager: HealthConnectManager): ViewModel() {
+class MainViewModel(
+    private val healthConnectManager: HealthConnectManager,
+    private val localRepository: LocalRepository,
+    private val remoteRepository: StepRepository
+) : ViewModel() {
 
     val permissions = setOf(
         HealthPermission.getWritePermission(ExerciseSessionRecord::class),
@@ -66,8 +74,7 @@ class MainViewModel(private val healthConnectManager: HealthConnectManager): Vie
 
     val permissionsLauncher = healthConnectManager.requestPermissionsActivityContract()
 
-    private val stepRepository = StepRepository()
-
+    // INITIAL LOAD
     fun initialLoad() {
         viewModelScope.launch {
             tryWithPermissionsCheck {
@@ -76,25 +83,7 @@ class MainViewModel(private val healthConnectManager: HealthConnectManager): Vie
         }
     }
 
-    fun insertExerciseSession() {
-        viewModelScope.launch {
-            tryWithPermissionsCheck {
-                val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS)
-                val latestStartOfSession = ZonedDateTime.now().minusMinutes(30)
-                val offset = Random.nextDouble()
-
-                // Generate random start time between the start of the day and (now - 30mins).
-                val startOfSession = startOfDay.plusSeconds(
-                    (Duration.between(startOfDay, latestStartOfSession).seconds * offset).toLong()
-                )
-                val endOfSession = startOfSession.plusMinutes(30)
-
-                healthConnectManager.writeExerciseSession(startOfSession, endOfSession)
-                readExerciseSessions()
-            }
-        }
-    }
-
+    // INSERT DUMMY DATA KE HealthConnect + Local SQLite
     fun insertDummyExerciseSession() {
         viewModelScope.launch {
             tryWithPermissionsCheck {
@@ -109,19 +98,15 @@ class MainViewModel(private val healthConnectManager: HealthConnectManager): Vie
 
                 val count = (50..150).random()
 
+                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
                 val stepData = StepData(
                     count = count,
-                    startTime = startTime.toInstant().toString(),
-                    endTime = endTime.toInstant().toString()
+                    startTime = startTime.format(formatter),
+                    endTime = endTime.format(formatter)
                 )
 
-                stepRepository.saveStep(stepData)
-                    .addOnSuccessListener {
-                        Log.d("MainViewModel", "Dummy step inserted: $count steps")
-                    }
-                    .addOnFailureListener {
-                        Log.e("MainViewModel", "Failed to insert step", it)
-                    }
+                localRepository.insertStep(stepData)
             }
         }
     }
@@ -133,8 +118,14 @@ class MainViewModel(private val healthConnectManager: HealthConnectManager): Vie
         sessionsList.value = healthConnectManager.readExerciseSessions(start.toInstant(), now)
     }
 
-    fun enqueueReadStepWorker(){
-        healthConnectManager.enqueueReadStepWorker()
+
+    fun uploadAllSteps() {
+        viewModelScope.launch {
+            val steps = localRepository.getAllSteps()
+            steps.forEach { remoteRepository.saveStep(it) }
+
+            localRepository.deleteAllSteps()
+        }
     }
 
     fun logGrantedPermissions() {
@@ -171,6 +162,30 @@ class MainViewModel(private val healthConnectManager: HealthConnectManager): Vie
         }
     }
 
+    fun insertExerciseSession() {
+        viewModelScope.launch {
+            tryWithPermissionsCheck {
+                val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS)
+                val latestStartOfSession = ZonedDateTime.now().minusMinutes(30)
+                val offset = Random.nextDouble()
+
+                // Generate random start time between the start of the day and (now - 30mins).
+                val startOfSession = startOfDay.plusSeconds(
+                    (Duration.between(startOfDay, latestStartOfSession).seconds * offset).toLong()
+                )
+                val endOfSession = startOfSession.plusMinutes(30)
+
+                healthConnectManager.writeExerciseSession(startOfSession, endOfSession)
+                readExerciseSessions()
+            }
+        }
+    }
+
+    fun enqueueReadStepWorker() {
+        healthConnectManager.enqueueReadStepWorker()
+    }
+
+
     sealed class UiState {
         object Uninitialized : UiState()
         object Done : UiState()
@@ -178,10 +193,19 @@ class MainViewModel(private val healthConnectManager: HealthConnectManager): Vie
     }
 }
 
-class MainViewModelFactory(private val healthConnectManager: HealthConnectManager) : ViewModelProvider.Factory {
+class MainViewModelFactory(
+    private val healthConnectManager: HealthConnectManager,
+    private val localRepository: LocalRepository,
+    private val remoteRepository: StepRepository
+) : ViewModelProvider.Factory {
+
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
-            return MainViewModel(healthConnectManager = healthConnectManager) as T
+            return MainViewModel(
+                healthConnectManager = healthConnectManager,
+                localRepository = localRepository,
+                remoteRepository = remoteRepository
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

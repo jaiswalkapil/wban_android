@@ -5,13 +5,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.material.ScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.room.Room
 import com.example.healthconnect.MainViewModel
 import com.example.healthconnect.MainViewModelFactory
+import com.example.healthconnect.data.local.dao.AppDatabase
+import com.example.healthconnect.data.repository.LocalRepository
+import com.example.healthconnect.data.repository.StepRepository
 import com.example.healthconnect.helper.HealthConnectManager
 import com.example.healthconnect.screens.HomeScreen
 
@@ -26,7 +32,22 @@ fun MainNavigation(navController: NavHostController,
         Log.d("MainNavigation", "Health Connect availability = $availability")
 
         composable(Screen.HomeScreen.route) {
-            val viewModel: MainViewModel = viewModel(factory = MainViewModelFactory(healthConnectManager))
+
+            val context = LocalContext.current
+            val db = remember {
+                Room.databaseBuilder(
+                    context,
+                    AppDatabase::class.java, "health-connect-db"
+                ).build()
+            }
+
+            val localRepository = remember { LocalRepository(db.stepRecordDao()) }
+            val stepRepository = remember { StepRepository() }
+
+            val viewModel: MainViewModel = viewModel(factory = MainViewModelFactory(healthConnectManager,
+                localRepository,
+                stepRepository))
+
             val permissionsGranted by viewModel.permissionsGranted
             val sessionsList by viewModel.sessionsList
             val permissions = viewModel.permissions
@@ -61,6 +82,7 @@ fun MainNavigation(navController: NavHostController,
                     viewModel.insertExerciseSession()
                 },
                 onInsertDummyClick = { viewModel.insertDummyExerciseSession() },
+                onSendLocalDataToFirebase ={viewModel.uploadAllSteps()},
                 onDetailsClick = { },
                 onError = { Log.d("MainNavigation", "Error: ${it?.message}") },
                 onPermissionsResult = {
